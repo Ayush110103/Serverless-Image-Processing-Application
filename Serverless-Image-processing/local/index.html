@@ -1,0 +1,222 @@
+local run:<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless Image Processor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropper/4.1.0/cropper.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .upload-section, .process-section {
+            width: 48%;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input[type="file"], select, button {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        .error {
+            color: #e74c3c;
+            margin-top: 10px;
+        }
+        #downloadButton {
+            background-color: #27ae60;
+            margin-top: 10px;
+            display: none;
+        }
+        #downloadButton:hover {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <h1>Serverless Image Processor</h1>
+    <div class="container">
+        <div class="upload-section">
+            <h2>Upload Image</h2>
+            <input type="file" id="imageUpload" accept="image/*">
+            <button id="uploadButton">Upload</button>
+            <div id="uploadedImageContainer"></div>
+        </div>
+        <div class="process-section">
+            <h2>Process Image</h2>
+            <select id="processAction">
+                <option value="">Select action</option>
+                <option value="resize">Resize</option>
+                <option value="grayscale">Grayscale</option>
+                <option value="blur">Blur</option>
+            </select>
+            <button id="processButton" disabled>Process</button>
+            <div id="processedImageContainer"></div>
+            <button id="downloadButton">Download Processed Image</button>
+        </div>
+    </div>
+    <div id="errorContainer" class="error"></div>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const uploadButton = document.getElementById('uploadButton');
+        const processAction = document.getElementById('processAction');
+        const processButton = document.getElementById('processButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const uploadedImageContainer = document.getElementById('uploadedImageContainer');
+        const processedImageContainer = document.getElementById('processedImageContainer');
+        const errorContainer = document.getElementById('errorContainer');
+
+        let uploadedImage = null;
+        let processedImageData = null;
+
+        uploadButton.addEventListener('click', () => {
+            const file = imageUpload.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedImage = new Image();
+                    uploadedImage.onload = () => {
+                        uploadedImageContainer.innerHTML = '';
+                        uploadedImageContainer.appendChild(uploadedImage);
+                        processButton.disabled = false;
+                    };
+                    uploadedImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showError('Please select an image to upload.');
+            }
+        });
+
+        processButton.addEventListener('click', () => {
+            const action = processAction.value;
+            if (action && uploadedImage) {
+                processImage(uploadedImage, action);
+            } else {
+                showError('Please upload an image and select a processing action.');
+            }
+        });
+
+        downloadButton.addEventListener('click', () => {
+            if (processedImageData) {
+                const link = document.createElement('a');
+                link.href = processedImageData;
+                link.download = 'processed_image.' + processedImageData.split(';')[0].split('/')[1];
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+
+        function processImage(image, action) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+
+            switch (action) {
+                case 'resize':
+                    resizeImage(canvas, ctx);
+                    break;
+                case 'grayscale':
+                    applyGrayscale(ctx, canvas.width, canvas.height);
+                    break;
+                case 'blur':
+                    applyBlur(ctx, canvas.width, canvas.height);
+                    break;
+                default:
+                    showError('Invalid action selected.');
+                    return;
+            }
+
+            processedImageData = canvas.toDataURL();
+            const processedImage = new Image();
+            processedImage.src = processedImageData;
+            processedImageContainer.innerHTML = '';
+            processedImageContainer.appendChild(processedImage);
+
+            downloadButton.style.display = 'block';
+        }
+
+        function resizeImage(canvas, ctx) {
+            // Resize to 50% of the original size for demo purposes
+            const newWidth = canvas.width * 0.5;
+            const newHeight = canvas.height * 0.5;
+
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = newWidth;
+            tempCanvas.height = newHeight;
+
+            tempCtx.drawImage(canvas, 0, 0, newWidth, newHeight);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            ctx.drawImage(tempCanvas, 0, 0);
+        }
+
+        function applyGrayscale(ctx, width, height) {
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                data[i] = data[i + 1] = data[i + 2] = avg;
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function applyBlur(ctx, width, height) {
+            ctx.filter = 'blur(5px)';
+            ctx.drawImage(uploadedImage, 0, 0);
+        }
+
+        function showError(message) {
+            errorContainer.textContent = message;
+            setTimeout(() => {
+                errorContainer.textContent = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
