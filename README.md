@@ -51,5 +51,23 @@ This setup leverages AWS services to build a **serverless image processing appli
    git clone https://github.com/your-repository-url
    cd your-repository-folder
 2. **Install Dependencies: Install the necessary dependencies using Node.js**:
- ```bash
-   npm install
+3. Set Up AWS S3 Buckets:
+
+Create two S3 buckets:
+Source Bucket: For image uploads.
+Destination Bucket: For processed images.
+Set Up AWS Lambda:
+
+Package the Lambda function with the required dependencies:
+Upload the function to AWS Lambda and configure the environment variable DEST_BUCKET to your destination S3 bucket.
+Configure API Gateway:
+
+Set up API Gateway to trigger the Lambda function on HTTP requests (e.g., POST requests).
+Configure S3 Triggers (Optional):
+
+You can set up an S3 trigger that automatically invokes the Lambda function when a new image is uploaded to the source bucket.
+Update Front-End:
+
+Replace the apiUrl in the index.html file with your API Gateway URL.
+Non-Cloud Setup (Local Run)
+This setup allows users to upload images and perform processing tasks (resize, grayscale, blur) locally in the browser, without the need for cloud services.
