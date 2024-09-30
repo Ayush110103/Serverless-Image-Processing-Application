@@ -1,222 +1,166 @@
-Aws run:<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Serverless Image Processor</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropper/4.1.0/cropper.min.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1, h2 {
-            text-align: center;
-            color: #2c3e50;
-        }
-        .container {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        .upload-section, .process-section {
-            width: 48%;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        input[type="file"], select, button {
-            display: block;
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        button {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        button:disabled {
-            background-color: #bdc3c7;
-            cursor: not-allowed;
-        }
-        img {
-            max-width: 100%;
-            height: auto;
-            margin-top: 10px;
-            border-radius: 5px;
-        }
-        .error {
-            color: #e74c3c;
-            margin-top: 10px;
-        }
-        #downloadButton {
-            background-color: #27ae60;
-            margin-top: 10px;
-            display: none;
-        }
-        #downloadButton:hover {
-            background-color: #2ecc71;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Processing Website</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      width: 100%;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    input[type="file"] {
+      padding: 10px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+    select {
+      padding: 10px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      font-size: 1rem;
+    }
+    button {
+      padding: 12px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .images {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+    .images img {
+      max-width: 45%;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .message {
+      text-align: center;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-    <h1>Serverless Image Processor</h1>
-    <div class="container">
-        <div class="upload-section">
-            <h2>Upload Image</h2>
-            <input type="file" id="imageUpload" accept="image/*">
-            <button id="uploadButton">Upload</button>
-            <div id="uploadedImageContainer"></div>
-        </div>
-        <div class="process-section">
-            <h2>Process Image</h2>
-            <select id="processAction">
-                <option value="">Select action</option>
-                <option value="resize">Resize</option>
-                <option value="grayscale">Grayscale</option>
-                <option value="blur">Blur</option>
-            </select>
-            <button id="processButton" disabled>Process</button>
-            <div id="processedImageContainer"></div>
-            <button id="downloadButton">Download Processed Image</button>
-        </div>
+  <div class="container">
+    <h1>Image Processing</h1>
+    <form id="imageForm">
+      <label for="image">Select Image:</label>
+      <input type="file" id="image" name="image" accept="image/*" required />
+
+      <label for="action">Select Action (For UI Only, Always Resizes):</label>
+      <select id="action" name="action">
+        <option value="resize">Resize</option>
+        <option value="greyscale">Greyscale</option>
+        <option value="blur">Gaussian Blur</option>
+      </select>
+
+      <button type="submit">Upload and Process</button>
+    </form>
+
+    <div class="message" id="message"></div>
+
+    <div class="images" id="images" style="display: none;">
+      <img id="beforeImage" alt="Original Image" />
+      <img id="afterImage" alt="Processed Image" />
     </div>
-    <div id="errorContainer" class="error"></div>
+  </div>
 
-    <script>
-        const imageUpload = document.getElementById('imageUpload');
-        const uploadButton = document.getElementById('uploadButton');
-        const processAction = document.getElementById('processAction');
-        const processButton = document.getElementById('processButton');
-        const downloadButton = document.getElementById('downloadButton');
-        const uploadedImageContainer = document.getElementById('uploadedImageContainer');
-        const processedImageContainer = document.getElementById('processedImageContainer');
-        const errorContainer = document.getElementById('errorContainer');
+  <script>
+    const form = document.getElementById('imageForm');
+    const messageDiv = document.getElementById('message');
+    const beforeImage = document.getElementById('beforeImage');
+    const afterImage = document.getElementById('afterImage');
+    const imagesDiv = document.getElementById('images');
 
-        let uploadedImage = null;
-        let processedImageData = null;
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
 
-        uploadButton.addEventListener('click', () => {
-            const file = imageUpload.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    uploadedImage = new Image();
-                    uploadedImage.onload = () => {
-                        uploadedImageContainer.innerHTML = '';
-                        uploadedImageContainer.appendChild(uploadedImage);
-                        processButton.disabled = false;
-                    };
-                    uploadedImage.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            } else {
-                showError('Please select an image to upload.');
-            }
+      const fileInput = document.getElementById('image');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert('Please select a file!');
+        return;
+      }
+
+      // Show original image before processing
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        beforeImage.src = e.target.result;
+        imagesDiv.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+
+      // Show processing message
+      messageDiv.textContent = 'Processing image, please wait...';
+
+      // Upload the image to S3 and trigger Lambda via API Gateway
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Replace with your API Gateway endpoint
+      const apiUrl = 'https://oq113iyuk8.execute-api.ap-south-1.amazonaws.com/dev'; // Update to your API endpoint
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          body: formData
         });
 
-        processButton.addEventListener('click', () => {
-            const action = processAction.value;
-            if (action && uploadedImage) {
-                processImage(uploadedImage, action);
-            } else {
-                showError('Please upload an image and select a processing action.');
-            }
-        });
+        const data = await response.json();
+        const processedImageUrl = https://dest-a2.s3.ap-south-1.amazonaws.com/${data.processedKey}; // Update with correct bucket name
 
-        downloadButton.addEventListener('click', () => {
-            if (processedImageData) {
-                const link = document.createElement('a');
-                link.href = processedImageData;
-                link.download = 'processed_image.' + processedImageData.split(';')[0].split('/')[1];
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-        });
-
-        function processImage(image, action) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = image.width;
-            canvas.height = image.height;
-            ctx.drawImage(image, 0, 0);
-
-            switch (action) {
-                case 'resize':
-                    resizeImage(canvas, ctx);
-                    break;
-                case 'grayscale':
-                    applyGrayscale(ctx, canvas.width, canvas.height);
-                    break;
-                case 'blur':
-                    applyBlur(ctx, canvas.width, canvas.height);
-                    break;
-                default:
-                    showError('Invalid action selected.');
-                    return;
-            }
-
-            processedImageData = canvas.toDataURL();
-            const processedImage = new Image();
-            processedImage.src = processedImageData;
-            processedImageContainer.innerHTML = '';
-            processedImageContainer.appendChild(processedImage);
-
-            downloadButton.style.display = 'block';
-        }
-
-        function resizeImage(canvas, ctx) {
-            // Resize to 50% of the original size for demo purposes
-            const newWidth = canvas.width * 0.5;
-            const newHeight = canvas.height * 0.5;
-
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = newWidth;
-            tempCanvas.height = newHeight;
-
-            tempCtx.drawImage(canvas, 0, 0, newWidth, newHeight);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-            ctx.drawImage(tempCanvas, 0, 0);
-        }
-
-        function applyGrayscale(ctx, width, height) {
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                data[i] = data[i + 1] = data[i + 2] = avg;
-            }
-            ctx.putImageData(imageData, 0, 0);
-        }
-
-        function applyBlur(ctx, width, height) {
-            ctx.filter = 'blur(5px)';
-            ctx.drawImage(uploadedImage, 0, 0);
-        }
-
-        function showError(message) {
-            errorContainer.textContent = message;
-            setTimeout(() => {
-                errorContainer.textContent = '';
-            }, 3000);
-        }
-    </script>
+        afterImage.src = processedImageUrl; // Set the processed image URL
+        messageDiv.textContent = Image processed successfully!;
+      } catch (error) {
+        console.error('Error:', error);
+        messageDiv.textContent = 'Failed to process image.';
+      }
+    });
+  </script>
 </body>
 </html>
